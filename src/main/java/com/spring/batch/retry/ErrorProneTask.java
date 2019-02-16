@@ -21,8 +21,8 @@ import org.springframework.retry.support.RetryTemplate;
 
 import java.util.Arrays;
 
-@Configuration
-@EnableBatchProcessing
+//@Configuration
+//@EnableBatchProcessing
 public class ErrorProneTask {
   private final JobBuilderFactory jobs;
   private final StepBuilderFactory steps;
