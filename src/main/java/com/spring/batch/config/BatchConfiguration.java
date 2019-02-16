@@ -48,6 +48,17 @@ import com.spring.batch.tasklets.TaskTwo;
 public class BatchConfiguration {
 
 	private static final Logger log = LoggerFactory.getLogger(BatchConfiguration.class);
+	@Value("${mycustom.batch.partition.size}")
+	private int mycustombatchpartitionsize;
+	@Value("${mycustom.batch.chunk.size}")
+	private int mycustombatchchunksize;
+	@Value("${mycustom.batch.maxpool.size}")
+	private int mycustombatchmaxpoolsize;
+	@Value("${mycustom.batch.corepool.size}")
+	private int mycustombatchcorepoolsize;
+	@Value("${mycustom.batch.queuecapacity.size}")
+	private int mycustombatchqueuecapacitysize;
+
 	@Autowired
 	public JobBuilderFactory jobBuilderFactory;
 	@Autowired
@@ -75,7 +86,7 @@ public class BatchConfiguration {
 			e.printStackTrace();
 		}
 		partitioner.setResources(resources);
-		partitioner.partition(100);
+		partitioner.partition(mycustombatchpartitionsize);
 		return partitioner;
 	}
 
@@ -92,38 +103,30 @@ public class BatchConfiguration {
 						+ "unitssold, unitprice, unitcost, totalrevenue, totalcost, totalprofit) "
 						+ "VALUES (:region, :country, :itemtype, :saleschannel, :orderpriority, :orderdate, :orderid"
 						+ ", :shipdate, :unitssold, :unitprice, :unitcost, :totalrevenue, :totalcost, :totalprofit)")
-			.dataSource(dataSource)
-				.build();
+				.dataSource(dataSource).build();
 	}
 
 	@Bean
 	public Job importUserJob(JobCompletionNotificationListener listener, Step step1) {
-		return jobBuilderFactory.get("importSalesJob")
-				.incrementer(new RunIdIncrementer())
-				.listener(listener)
-				.flow(masterStep())
-				.end()
-				.build();
+		return jobBuilderFactory.get("importSalesJob").incrementer(new RunIdIncrementer()).listener(listener)
+				.flow(masterStep()).end().build();
 	}
 
 	@Bean
 	public Step step1() {
-		return stepBuilderFactory.get("step1")
-				.<Sales, Sales>chunk(100)
-				.processor(processor())
+		return stepBuilderFactory.get("step1").<Sales, Sales>chunk(mycustombatchchunksize).processor(processor())
 				.writer(writer)
-				//.skipLimit(0) //default is set to 0
-				//.startLimit(1)
-				.reader(salesItemReader)
-				.build();
+				// .skipLimit(10) //default is set to 0
+				// .startLimit(1)
+				.reader(salesItemReader).build();
 	}
 
 	@Bean
 	public ThreadPoolTaskExecutor taskExecutor() {
 		ThreadPoolTaskExecutor taskExecutor = new ThreadPoolTaskExecutor();
-		taskExecutor.setMaxPoolSize(100);
-		taskExecutor.setCorePoolSize(100);
-		taskExecutor.setQueueCapacity(100);
+		taskExecutor.setMaxPoolSize(mycustombatchmaxpoolsize);
+		taskExecutor.setCorePoolSize(mycustombatchcorepoolsize);
+		taskExecutor.setQueueCapacity(mycustombatchqueuecapacitysize);
 		taskExecutor.afterPropertiesSet();
 		return taskExecutor;
 	}
@@ -131,11 +134,8 @@ public class BatchConfiguration {
 	@Bean
 	@Qualifier("masterStep")
 	public Step masterStep() {
-		return stepBuilderFactory.get("masterStep")
-				.partitioner("step1", partitioner())
-				.step(step1())
-				.taskExecutor(taskExecutor())
-				.build();
+		return stepBuilderFactory.get("masterStep").partitioner("step1", partitioner()).step(step1())
+				.taskExecutor(taskExecutor()).build();
 	}
 
 	@Bean
@@ -144,9 +144,9 @@ public class BatchConfiguration {
 	@DependsOn("partitioner")
 	public FlatFileItemReader<Sales> salesItemReader(@Value("#{stepExecutionContext['fileName']}") String filename)
 			throws MalformedURLException {
-		log.info("In Reader   >>     "+filename);
+		log.info("In Reader   >>     " + filename);
 //		System.out.println("In Reader   >>     "+filename);
-		return new FlatFileItemReaderBuilder<Sales>().name("salesItemReader")//.linesToSkip(1)
+		return new FlatFileItemReaderBuilder<Sales>().name("salesItemReader")// .linesToSkip(1)
 				.delimited()
 				.names(new String[] { "region", "country", "itemtype", "saleschannel", "orderpriority", "orderdate",
 						"orderid", "shipdate", "unitssold", "unitprice", "unitcost", "totalrevenue", "totalcost",
@@ -155,46 +155,32 @@ public class BatchConfiguration {
 					{
 						setTargetType(Sales.class);
 					}
-				})
-				.resource(new UrlResource(filename))
-				.build();
+				}).resource(new UrlResource(filename)).build();
 	}
-	
 
 	@Bean
 	public Job importSecondJob(Step step2) {
-		return jobBuilderFactory.get("importSecondJob")
-				.incrementer(new RunIdIncrementer())
-				//.preventRestart() // By default all jobs are re-startable. Use this if want to restrict it.
-				.flow(step2)
-				.end()
-				.listener(interceptingJob)
-				.build();
+		return jobBuilderFactory.get("importSecondJob").incrementer(new RunIdIncrementer())
+				// .preventRestart() // By default all jobs are re-startable. Use this if want
+				// to restrict it.
+				.flow(step2).end().listener(interceptingJob).build();
 	}
-	
+
 	@Bean
 	public Job importThirdJob(Step step3) {
-		return jobBuilderFactory.get("importThirdJob")
-				.incrementer(new RunIdIncrementer())
-				//.preventRestart()
-				.flow(step3)
-				.end()
-				.build();
+		return jobBuilderFactory.get("importThirdJob").incrementer(new RunIdIncrementer())
+				// .preventRestart()
+				.flow(step3).end().build();
 	}
-	
-	
+
 	@Bean
 	public Step step2() {
-	        return stepBuilderFactory.get("step2")
-	                .tasklet(new TaskTwo())
-	                .build();
+		return stepBuilderFactory.get("step2").tasklet(new TaskTwo()).build();
 	}
-	     
+
 	@Bean
 	public Step step3() {
-	        return stepBuilderFactory.get("step3")
-	                .tasklet(new TaskThree())
-	                .build();
+		return stepBuilderFactory.get("step3").tasklet(new TaskThree()).build();
 	}
-	
+
 }
