@@ -1,8 +1,7 @@
 package com.spring.batch.retry;
 
 import org.springframework.boot.SpringApplication;
-import org.springframework.boot.autoconfigure.SpringBootApplication;
-import org.springframework.retry.annotation.EnableRetry;
+import org.springframework.retry.annotation.Backoff;
 import org.springframework.retry.annotation.Recover;
 import org.springframework.retry.annotation.Retryable;
 
@@ -18,7 +17,7 @@ public static void main(String[] args) {
 
 
 //RequestMapping(value="",method=RequestMethod.GET)
-@Retryable(value= {NumberFormatException.class,NullPointerException.class})
+@Retryable(value= {NumberFormatException.class,NullPointerException.class}, maxAttempts = 5, backoff = @Backoff(2000))
 public String myApp() {
 	System.out.println("My App API is calling......");
 	String str=null;
