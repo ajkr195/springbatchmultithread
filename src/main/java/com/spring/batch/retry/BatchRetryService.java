@@ -14,7 +14,7 @@ public class BatchRetryService {
 	private static int COUNTER = 0;
 
 	@Retryable(value = { CustomTypeOneException.class,
-			CustomTypeTwoException.class }, maxAttempts = 4, backoff = @Backoff(2000))
+			CustomTypeTwoException.class }, maxAttempts = 5, backoff = @Backoff(5000))
 	public String retryWhenException() throws CustomTypeOneException, CustomTypeTwoException {
 		COUNTER++;
 		LOGGER.info("COUNTER = " + COUNTER);

@@ -13,4 +13,5 @@ public class BatchRetryClientService {
     public String callRetryService() throws CustomTypeOneException, CustomTypeTwoException {
         return sampleRetryService.retryWhenException();
     }
+    
 }

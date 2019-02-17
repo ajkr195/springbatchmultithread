@@ -20,7 +20,7 @@ import org.springframework.retry.policy.SimpleRetryPolicy;
 import org.springframework.retry.support.RetryTemplate;
 
 //@Configuration
-//@EnableBatchProcessing
+//@EnableBatchProcessing 
 public class ErrorProneTask2 {
 
 	private final JobBuilderFactory jobs;

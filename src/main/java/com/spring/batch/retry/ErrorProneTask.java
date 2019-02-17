@@ -68,7 +68,8 @@ public class ErrorProneTask {
       .build();
   }
 
-  public static void main(String[] args) throws Throwable {
+  @SuppressWarnings("resource")
+public static void main(String[] args) throws Throwable {
     RetryTemplate retryTemplate = new RetryTemplate();
     retryTemplate.setRetryPolicy(new SimpleRetryPolicy(3));
     ApplicationContext applicationContext = new AnnotationConfigApplicationContext(ErrorProneTask.class);

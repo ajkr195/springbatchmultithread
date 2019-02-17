@@ -2,6 +2,8 @@ package com.spring.batch.config;
 
 import java.io.IOException;
 import java.net.MalformedURLException;
+import java.util.ArrayList;
+import java.util.List;
 
 import javax.sql.DataSource;
 
@@ -16,25 +18,27 @@ import org.springframework.batch.core.configuration.annotation.StepScope;
 import org.springframework.batch.core.launch.support.RunIdIncrementer;
 import org.springframework.batch.core.partition.support.MultiResourcePartitioner;
 import org.springframework.batch.core.partition.support.Partitioner;
+import org.springframework.batch.item.ItemWriter;
 import org.springframework.batch.item.database.BeanPropertyItemSqlParameterSourceProvider;
 import org.springframework.batch.item.database.JdbcBatchItemWriter;
 import org.springframework.batch.item.database.builder.JdbcBatchItemWriterBuilder;
 import org.springframework.batch.item.file.FlatFileItemReader;
-import org.springframework.batch.item.file.MultiResourceItemReader;
 import org.springframework.batch.item.file.builder.FlatFileItemReaderBuilder;
 import org.springframework.batch.item.file.mapping.BeanWrapperFieldSetMapper;
+import org.springframework.batch.item.support.CompositeItemWriter;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.DependsOn;
-import org.springframework.core.io.ClassPathResource;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.UrlResource;
 import org.springframework.core.io.support.PathMatchingResourcePatternResolver;
 import org.springframework.core.io.support.ResourcePatternResolver;
+import org.springframework.retry.annotation.EnableRetry;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
+import org.springframework.transaction.interceptor.DefaultTransactionAttribute;
 
 import com.spring.batch.itemprocessor.SalesItemProcessor;
 import com.spring.batch.listener.InterceptingJobExecution;
@@ -45,6 +49,7 @@ import com.spring.batch.tasklets.TaskTwo;
 
 @Configuration
 @EnableBatchProcessing
+@EnableRetry
 public class BatchConfiguration {
 
 	private static final Logger log = LoggerFactory.getLogger(BatchConfiguration.class);
@@ -91,6 +96,26 @@ public class BatchConfiguration {
 	}
 
 	@Bean
+	@StepScope
+	@Qualifier("salesItemReader")
+	@DependsOn("partitioner")
+	public FlatFileItemReader<Sales> salesItemReader(@Value("#{stepExecutionContext['fileName']}") String filename)
+			throws MalformedURLException {
+		log.info("In Reader   >>     " + filename);
+		// System.out.println("In Reader >> "+filename);
+		return new FlatFileItemReaderBuilder<Sales>().name("salesItemReader")// .linesToSkip(1)
+				.delimited()
+				.names(new String[] { "region", "country", "itemtype", "saleschannel", "orderpriority", "orderdate",
+						"orderid", "shipdate", "unitssold", "unitprice", "unitcost", "totalrevenue", "totalcost",
+						"totalprofit" })
+				.fieldSetMapper(new BeanWrapperFieldSetMapper<Sales>() {
+					{
+						setTargetType(Sales.class);
+					}
+				}).resource(new UrlResource(filename)).build();
+	}
+
+	@Bean
 	public SalesItemProcessor processor() {
 		return new SalesItemProcessor();
 	}
@@ -104,21 +129,6 @@ public class BatchConfiguration {
 						+ "VALUES (:region, :country, :itemtype, :saleschannel, :orderpriority, :orderdate, :orderid"
 						+ ", :shipdate, :unitssold, :unitprice, :unitcost, :totalrevenue, :totalcost, :totalprofit)")
 				.dataSource(dataSource).build();
-	}
-
-	@Bean
-	public Job importUserJob(JobCompletionNotificationListener listener, Step step1) {
-		return jobBuilderFactory.get("importSalesJob").incrementer(new RunIdIncrementer()).listener(listener)
-				.flow(masterStep()).end().build();
-	}
-
-	@Bean
-	public Step step1() {
-		return stepBuilderFactory.get("step1").<Sales, Sales>chunk(mycustombatchchunksize).processor(processor())
-				.writer(writer)
-				// .skipLimit(10) //default is set to 0
-				// .startLimit(1)
-				.reader(salesItemReader).build();
 	}
 
 	@Bean
@@ -139,23 +149,28 @@ public class BatchConfiguration {
 	}
 
 	@Bean
-	@StepScope
-	@Qualifier("salesItemReader")
-	@DependsOn("partitioner")
-	public FlatFileItemReader<Sales> salesItemReader(@Value("#{stepExecutionContext['fileName']}") String filename)
-			throws MalformedURLException {
-		log.info("In Reader   >>     " + filename);
-//		System.out.println("In Reader   >>     "+filename);
-		return new FlatFileItemReaderBuilder<Sales>().name("salesItemReader")// .linesToSkip(1)
-				.delimited()
-				.names(new String[] { "region", "country", "itemtype", "saleschannel", "orderpriority", "orderdate",
-						"orderid", "shipdate", "unitssold", "unitprice", "unitcost", "totalrevenue", "totalcost",
-						"totalprofit" })
-				.fieldSetMapper(new BeanWrapperFieldSetMapper<Sales>() {
-					{
-						setTargetType(Sales.class);
-					}
-				}).resource(new UrlResource(filename)).build();
+	public Job importSalesJob(JobCompletionNotificationListener listener, Step step1) {
+		return jobBuilderFactory.get("importSalesJob").incrementer(new RunIdIncrementer()).listener(listener)
+				.flow(masterStep()).end().build();
+	}
+
+	@SuppressWarnings("unused")
+	@Bean
+	public Step step1() {
+		DefaultTransactionAttribute attribute = new DefaultTransactionAttribute();
+		// attribute.setPropagationBehavior(Propagation.REQUIRED.value());
+		// attribute.setIsolationLevel(Isolation.DEFAULT.value());
+		// attribute.setTimeout(30);
+		return stepBuilderFactory.get("step1").<Sales, Sales>chunk(mycustombatchchunksize).reader(salesItemReader)
+				.processor(processor()).writer(writer)
+				// .skipLimit(10) //default is set to 0 // .startLimit(1)
+				// .stream(fileItemWriter1())// .stream(fileItemWriter2())
+				// .transactionAttribute(attribute) // .readerIsTransactionalQueue()
+				// .faultTolerant() // .noRollback(ValidationException.class)
+				// .skip(Exception.class)// .noSkip(FileNotFoundException.class)
+				// .retryLimit(3)// .retry(DeadlockLoserDataAccessException.class)
+				// .skip(FlatFileParseException.class) // .writer(compositeItemWriter())
+				.build();
 	}
 
 	@Bean
@@ -182,5 +197,15 @@ public class BatchConfiguration {
 	public Step step3() {
 		return stepBuilderFactory.get("step3").tasklet(new TaskThree()).build();
 	}
+
+//	@Bean
+//	public CompositeItemWriter compositeItemWriter() {
+//	        List<ItemWriter> writers = new ArrayList<>(2);
+//	        writers.add(fileItemWriter1());
+//	        writers.add(fileItemWriter2());
+//	        CompositeItemWriter itemWriter = new CompositeItemWriter();
+//	        itemWriter.setDelegates(writers);
+//	        return itemWriter;
+//	}
 
 }
