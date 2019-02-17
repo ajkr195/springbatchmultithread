@@ -16,7 +16,7 @@ public static void main(String[] args) {
 }
 
 //RequestMapping(value="",method=RequestMethod.GET)
-@Retryable(value= {NumberFormatException.class,NullPointerException.class}, maxAttempts = 5, backoff = @Backoff(2000))
+@Retryable(value= {NumberFormatException.class,NullPointerException.class}, maxAttempts = 5, backoff = @Backoff(delay=100, maxDelay=500))//) (2000))
 public String myApp() {
 	System.out.println("My App API is calling......");
 	String str=null;

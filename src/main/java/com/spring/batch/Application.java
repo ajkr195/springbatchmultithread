@@ -5,10 +5,12 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.cloud.task.configuration.EnableTask;
 import org.springframework.context.annotation.ComponentScan;
-
+import org.springframework.scheduling.annotation.EnableScheduling;
+ 
 @EnableTask
 @EnableBatchProcessing
 @SpringBootApplication
+//@EnableScheduling
 @ComponentScan({ "com.spring.batch.*" })
 public class Application {
 

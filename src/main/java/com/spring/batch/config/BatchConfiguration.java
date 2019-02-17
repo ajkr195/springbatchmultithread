@@ -2,8 +2,6 @@ package com.spring.batch.config;
 
 import java.io.IOException;
 import java.net.MalformedURLException;
-import java.util.ArrayList;
-import java.util.List;
 
 import javax.sql.DataSource;
 
@@ -11,21 +9,23 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.batch.core.Job;
 import org.springframework.batch.core.Step;
+import org.springframework.batch.core.configuration.JobRegistry;
 import org.springframework.batch.core.configuration.annotation.EnableBatchProcessing;
 import org.springframework.batch.core.configuration.annotation.JobBuilderFactory;
 import org.springframework.batch.core.configuration.annotation.StepBuilderFactory;
 import org.springframework.batch.core.configuration.annotation.StepScope;
+import org.springframework.batch.core.configuration.support.JobRegistryBeanPostProcessor;
 import org.springframework.batch.core.launch.support.RunIdIncrementer;
 import org.springframework.batch.core.partition.support.MultiResourcePartitioner;
 import org.springframework.batch.core.partition.support.Partitioner;
-import org.springframework.batch.item.ItemWriter;
+//import org.springframework.batch.item.ItemWriter;
 import org.springframework.batch.item.database.BeanPropertyItemSqlParameterSourceProvider;
 import org.springframework.batch.item.database.JdbcBatchItemWriter;
 import org.springframework.batch.item.database.builder.JdbcBatchItemWriterBuilder;
 import org.springframework.batch.item.file.FlatFileItemReader;
 import org.springframework.batch.item.file.builder.FlatFileItemReaderBuilder;
 import org.springframework.batch.item.file.mapping.BeanWrapperFieldSetMapper;
-import org.springframework.batch.item.support.CompositeItemWriter;
+//import org.springframework.batch.item.support.CompositeItemWriter;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
@@ -66,8 +66,10 @@ public class BatchConfiguration {
 
 	@Autowired
 	public JobBuilderFactory jobBuilderFactory;
+
 	@Autowired
 	InterceptingJobExecution interceptingJob;
+
 	@Autowired
 	public StepBuilderFactory stepBuilderFactory;
 
@@ -76,6 +78,7 @@ public class BatchConfiguration {
 
 	@Autowired
 	private FlatFileItemReader<Sales> salesItemReader;
+	
 
 	@Bean("partitioner")
 	@StepScope
@@ -94,6 +97,28 @@ public class BatchConfiguration {
 		partitioner.partition(mycustombatchpartitionsize);
 		return partitioner;
 	}
+
+	@Bean
+	public ThreadPoolTaskExecutor taskExecutor() {
+		ThreadPoolTaskExecutor taskExecutor = new ThreadPoolTaskExecutor();
+		taskExecutor.setMaxPoolSize(mycustombatchmaxpoolsize);
+		taskExecutor.setCorePoolSize(mycustombatchcorepoolsize);
+		taskExecutor.setQueueCapacity(mycustombatchqueuecapacitysize);
+		taskExecutor.afterPropertiesSet();
+		return taskExecutor;
+	}
+	
+	@Bean
+    public JobRegistryBeanPostProcessor jobRegistryBeanPostProcessor(JobRegistry jobRegistry) {
+        JobRegistryBeanPostProcessor jobRegistryBeanPostProcessor = new JobRegistryBeanPostProcessor();
+        jobRegistryBeanPostProcessor.setJobRegistry(jobRegistry);
+        return jobRegistryBeanPostProcessor;
+    }
+	
+//	@Bean
+//    public Job job(@Qualifier("step1") Step step1, @Qualifier("step2") Step step2) {
+//        return jobBuilderFactory.get("myJob").start(step1).next(step2).build();
+//    }
 
 	@Bean
 	@StepScope
@@ -129,16 +154,6 @@ public class BatchConfiguration {
 						+ "VALUES (:region, :country, :itemtype, :saleschannel, :orderpriority, :orderdate, :orderid"
 						+ ", :shipdate, :unitssold, :unitprice, :unitcost, :totalrevenue, :totalcost, :totalprofit)")
 				.dataSource(dataSource).build();
-	}
-
-	@Bean
-	public ThreadPoolTaskExecutor taskExecutor() {
-		ThreadPoolTaskExecutor taskExecutor = new ThreadPoolTaskExecutor();
-		taskExecutor.setMaxPoolSize(mycustombatchmaxpoolsize);
-		taskExecutor.setCorePoolSize(mycustombatchcorepoolsize);
-		taskExecutor.setQueueCapacity(mycustombatchqueuecapacitysize);
-		taskExecutor.afterPropertiesSet();
-		return taskExecutor;
 	}
 
 	@Bean
