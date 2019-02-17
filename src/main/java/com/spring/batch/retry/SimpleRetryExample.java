@@ -15,7 +15,6 @@ public static void main(String[] args) {
 	SpringApplication.run(SimpleRetryExample.class, args);
 }
 
-
 //RequestMapping(value="",method=RequestMethod.GET)
 @Retryable(value= {NumberFormatException.class,NullPointerException.class}, maxAttempts = 5, backoff = @Backoff(2000))
 public String myApp() {
