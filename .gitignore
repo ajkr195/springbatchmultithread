@@ -1,7 +1,7 @@
 /target/
 !.mvn/wrapper/maven-wrapper.jar
 
-### ECLIPSE/STS ###
+## ECLIPSE/STS ##
 .apt_generated
 .classpath
 .factorypath
