@@ -35,21 +35,17 @@ public class ErrorProneTask2 {
 
 	@Bean
 	public Step step() {
-		return steps.get("step")
-				.tasklet((contribution, chunkContext) -> {
-					Map<String, Object> jobParameters = chunkContext.getStepContext().getJobParameters();
-					String name = (String) jobParameters.get("name");
-					System.out.println("Hello " + name);
-					throw new Exception("Boom!");
-				})
-				.build();
+		return steps.get("step").tasklet((contribution, chunkContext) -> {
+			Map<String, Object> jobParameters = chunkContext.getStepContext().getJobParameters();
+			String name = (String) jobParameters.get("name");
+			System.out.println("Hello " + name);
+			throw new Exception("Boom!");
+		}).build();
 	}
 
 	@Bean
 	public Job job() {
-		return jobs.get("job")
-				.start(step())
-				.build();
+		return jobs.get("job").start(step()).build();
 	}
 
 	@SuppressWarnings("resource")
@@ -64,8 +60,8 @@ public class ErrorProneTask2 {
 
 		retryTemplate.execute(retryContext -> {
 			JobExecution jobExecution = jobLauncher.run(job, jobParameters);
-			if (!jobExecution.getAllFailureExceptions().isEmpty()){
-                                System.out.println("Job failed, retrying..");
+			if (!jobExecution.getAllFailureExceptions().isEmpty()) {
+				System.out.println("Job failed, retrying..");
 				throw jobExecution.getAllFailureExceptions().iterator().next();
 			}
 			return jobExecution;

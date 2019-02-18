@@ -7,23 +7,23 @@ import org.springframework.retry.backoff.FixedBackOffPolicy;
 import org.springframework.retry.policy.SimpleRetryPolicy;
 import org.springframework.retry.support.RetryTemplate;
 
-@EnableRetry
-@SpringBootApplication
+//@EnableRetry
+//@SpringBootApplication
 public class RetryExampleApplication {
 
-    @Bean
-    public RetryTemplate retryTemplate() {
-        SimpleRetryPolicy retryPolicy = new SimpleRetryPolicy();
-        retryPolicy.setMaxAttempts(5);
+	@Bean
+	public RetryTemplate retryTemplate() {
+		SimpleRetryPolicy retryPolicy = new SimpleRetryPolicy();
+		retryPolicy.setMaxAttempts(5);
 
-        FixedBackOffPolicy backOffPolicy = new FixedBackOffPolicy();
-        backOffPolicy.setBackOffPeriod(1500); // 1.5 seconds
+		FixedBackOffPolicy backOffPolicy = new FixedBackOffPolicy();
+		backOffPolicy.setBackOffPeriod(1500); // 1.5 seconds
 
-        RetryTemplate template = new RetryTemplate();
-        template.setRetryPolicy(retryPolicy);
-        template.setBackOffPolicy(backOffPolicy);
+		RetryTemplate template = new RetryTemplate();
+		template.setRetryPolicy(retryPolicy);
+		template.setBackOffPolicy(backOffPolicy);
 
-        return template;
-    }
+		return template;
+	}
 
 }

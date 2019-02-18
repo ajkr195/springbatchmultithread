@@ -7,7 +7,7 @@ import org.springframework.retry.annotation.Recover;
 import org.springframework.retry.annotation.Retryable;
 import org.springframework.stereotype.Service;
 
-@Service
+//@Service
 public class BatchRetryService {
 	private static final Logger LOGGER = LoggerFactory.getLogger(BatchRetryService.class);
 
