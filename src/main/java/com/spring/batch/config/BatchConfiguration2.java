@@ -1,7 +1,14 @@
 package com.spring.batch.config;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import javax.sql.DataSource;
 
@@ -27,6 +34,8 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.core.io.FileSystemResource;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.retry.annotation.EnableRetry;
+import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
+
 //import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import com.spring.batch.itemprocessor.SalesItemProcessor2;
 import com.spring.batch.listener.InterceptingJobExecution;
@@ -38,7 +47,7 @@ import com.spring.batch.model.Sales;
 public class BatchConfiguration2 {
 
 	private static final Logger log = LoggerFactory.getLogger(BatchConfiguration2.class);
-
+	private static String FILENAME = "salesreport.csv";
 	@Autowired
 	public JobBuilderFactory jobBuilderFactory;
 
@@ -59,13 +68,12 @@ public class BatchConfiguration2 {
 		return new SalesItemProcessor2();
 	}
 
-	@Bean(destroyMethod="")
+	@Bean(destroyMethod = "")
 	public JdbcCursorItemReader<Sales> reader2() {
 		log.info("BATCH CONFIG 2 - Reading DB values.........");
 		JdbcCursorItemReader<Sales> reader2 = new JdbcCursorItemReader<Sales>();
 		reader2.setDataSource(dataSource);
-		reader2.setSql(
-				"SELECT region, country, itemType, salesChannel, orderPriority, orderDate, orderID, shipDate, "
+		reader2.setSql("SELECT region, country, itemType, salesChannel, orderPriority, orderDate, orderID, shipDate, "
 				+ "unitsSold, unitPrice, unitCost, totalRevenue, totalCost, totalProfit FROM salesreport");
 		reader2.setRowMapper(new SalesRowMapper());
 
@@ -102,7 +110,7 @@ public class BatchConfiguration2 {
 		FlatFileItemWriter<Sales> writer2 = new FlatFileItemWriter<Sales>();
 //		writer2.setResource(new ClassPathResource("salesreport.csv"));
 //		writer2.setResource(new FileSystemResource(new File("salesreport.csv")));
-		writer2.setResource(new FileSystemResource("salesreport.csv"));
+		writer2.setResource(new FileSystemResource(FILENAME));
 		writer2.setShouldDeleteIfExists(true);
 		writer2.setAppendAllowed(false);
 //		writer2.setHeaderCallback(headerCallback());
@@ -134,7 +142,46 @@ public class BatchConfiguration2 {
 	@Bean
 	public Job exportSalesJob() {
 		return jobBuilderFactory.get("exportSalesJob").incrementer(new RunIdIncrementer()).flow(step5()).end()
-				.listener(jobExecution).build();
+				.listener(jobExecution).listener(jobExecutionListener2()).build();
 	}
+
+	@Bean
+	public JobExecutionListener jobExecutionListener2() {
+		return new JobExecutionListener() {
+			@Override
+			public void beforeJob(JobExecution jobExecution) {
+				log.info(
+						"This message is \"before\" the start of job. You might want to do something here - Before the job.");
+			}
+
+			@Override
+			public void afterJob(JobExecution jobExecution) {
+				log.info("This message is \"after\" the job. You might want to do something here - After the job.");
+
+				log.info("Lets verify the generated output csv file");
+				try (Stream<String> stream = Files.lines(Paths.get(FILENAME))) {
+
+					stream.forEach(System.out::println);
+
+				} catch (IOException e) {
+					e.printStackTrace();
+				}
+			}
+		};
+	}
+
+//	public void javaStream() {
+//		List<String> list = new ArrayList<>();
+//		try (Stream<String> stream = Files.lines(Paths.get(FILENAME))) {
+//			// 1. filter line 3 //2. convert all content to upper case //3. convert it into
+//			// a List
+//			list = stream.filter(line -> !line.startsWith("line3")).map(String::toUpperCase)
+//					.collect(Collectors.toList());
+//
+//		} catch (IOException e) {
+//			e.printStackTrace();
+//		}
+//		list.forEach(System.out::println);
+//	}
 
 }
