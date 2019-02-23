@@ -8,6 +8,8 @@ import javax.sql.DataSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.batch.core.Job;
+import org.springframework.batch.core.JobExecution;
+import org.springframework.batch.core.JobExecutionListener;
 import org.springframework.batch.core.Step;
 import org.springframework.batch.core.configuration.JobRegistry;
 import org.springframework.batch.core.configuration.annotation.EnableBatchProcessing;
@@ -44,6 +46,7 @@ import com.spring.batch.itemprocessor.SalesItemProcessor;
 import com.spring.batch.listener.InterceptingJobExecution;
 import com.spring.batch.listener.JobCompletionNotificationListener;
 import com.spring.batch.model.Sales;
+import com.spring.batch.tasklets.TaskOne;
 import com.spring.batch.tasklets.TaskThree;
 import com.spring.batch.tasklets.TaskTwo;
 
@@ -78,7 +81,6 @@ public class BatchConfiguration {
 
 	@Autowired
 	private FlatFileItemReader<Sales> salesItemReader;
-	
 
 	@Bean("partitioner")
 	@StepScope
@@ -107,14 +109,14 @@ public class BatchConfiguration {
 		taskExecutor.afterPropertiesSet();
 		return taskExecutor;
 	}
-	
+
 	@Bean
-    public JobRegistryBeanPostProcessor jobRegistryBeanPostProcessor(JobRegistry jobRegistry) {
-        JobRegistryBeanPostProcessor jobRegistryBeanPostProcessor = new JobRegistryBeanPostProcessor();
-        jobRegistryBeanPostProcessor.setJobRegistry(jobRegistry);
-        return jobRegistryBeanPostProcessor;
-    }
-	
+	public JobRegistryBeanPostProcessor jobRegistryBeanPostProcessor(JobRegistry jobRegistry) {
+		JobRegistryBeanPostProcessor jobRegistryBeanPostProcessor = new JobRegistryBeanPostProcessor();
+		jobRegistryBeanPostProcessor.setJobRegistry(jobRegistry);
+		return jobRegistryBeanPostProcessor;
+	}
+
 //	@Bean
 //    public Job job(@Qualifier("step1") Step step1, @Qualifier("step2") Step step2) {
 //        return jobBuilderFactory.get("myJob").start(step1).next(step2).build();
@@ -126,7 +128,8 @@ public class BatchConfiguration {
 	@DependsOn("partitioner")
 	public FlatFileItemReader<Sales> salesItemReader(@Value("#{stepExecutionContext['fileName']}") String filename)
 			throws MalformedURLException {
-		log.info("In Reader   >>     " + filename);
+		log.info("In Flat-File-Item-Reader, currently reading   >>     " + filename);
+		log.info("BATCH CONFIG 1 - Reading CSV values.........");
 		// System.out.println("In Reader >> "+filename);
 		return new FlatFileItemReaderBuilder<Sales>().name("salesItemReader")// .linesToSkip(1)
 				.delimited()
@@ -142,11 +145,13 @@ public class BatchConfiguration {
 
 	@Bean
 	public SalesItemProcessor processor() {
+		log.info("BATCH CONFIG 1 - Processing CSV values.........");
 		return new SalesItemProcessor();
 	}
 
 	@Bean
 	public JdbcBatchItemWriter<Sales> writer(DataSource dataSource) {
+		log.info("BATCH CONFIG 1 - Loading CSV values to Database.........");
 		return new JdbcBatchItemWriterBuilder<Sales>()
 				.itemSqlParameterSourceProvider(new BeanPropertyItemSqlParameterSourceProvider<>())
 				.sql("INSERT INTO salesreport (region, country, itemtype, saleschannel, orderpriority,orderdate, orderid, shipdate, "
@@ -189,11 +194,31 @@ public class BatchConfiguration {
 	}
 
 	@Bean
+	public JobExecutionListener jobExecutionListener(ThreadPoolTaskExecutor executor) {
+		return new JobExecutionListener() {
+			private ThreadPoolTaskExecutor taskExecutor = executor;
+
+			@Override
+			public void beforeJob(JobExecution jobExecution) {
+				log.info(
+						"This message is \"before\" the start of job. You might want to do something here - Before the job.");
+			}
+
+			@Override
+			public void afterJob(JobExecution jobExecution) {
+				log.info(
+						"This message is \"after\" the job. You might want to do something here - After the job.");
+				taskExecutor.shutdown();
+			}
+		};
+	}
+
+	@Bean
 	public Job importSecondJob(Step step2) {
 		return jobBuilderFactory.get("importSecondJob").incrementer(new RunIdIncrementer())
 				// .preventRestart() // By default all jobs are re-startable. Use this if want
 				// to restrict it.
-				.flow(step2).end().listener(interceptingJob).build();
+				.flow(step2).end().listener(interceptingJob).listener(jobExecutionListener(taskExecutor())).build();
 	}
 
 	@Bean
@@ -204,13 +229,25 @@ public class BatchConfiguration {
 	}
 
 	@Bean
+	public Job importFourthJob(Step step4) {
+		return jobBuilderFactory.get("importFourthJob").incrementer(new RunIdIncrementer())
+				// .preventRestart()
+				.flow(step4).end().build();
+	}
+
+	@Bean
 	public Step step2() {
-		return stepBuilderFactory.get("step2").tasklet(new TaskTwo()).build();
+		return stepBuilderFactory.get("step2").tasklet(new TaskOne()).build();
 	}
 
 	@Bean
 	public Step step3() {
-		return stepBuilderFactory.get("step3").tasklet(new TaskThree()).build();
+		return stepBuilderFactory.get("step3").tasklet(new TaskTwo()).build();
+	}
+
+	@Bean
+	public Step step4() {
+		return stepBuilderFactory.get("step4").tasklet(new TaskThree()).build();
 	}
 
 //	@Bean

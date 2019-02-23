@@ -11,6 +11,8 @@ import org.springframework.stereotype.Component;
 @Component
 public class ScheduledTasks {
 
+//	To Enable the Scheduling uncomment @EnableScheduling in the Main Application class
+	
     private static final Logger log = LoggerFactory.getLogger(ScheduledTasks.class);
 
     private static final SimpleDateFormat dateFormat = new SimpleDateFormat("HH:mm:ss");
