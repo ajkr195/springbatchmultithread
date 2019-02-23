@@ -136,7 +136,7 @@ public class BatchConfiguration2 {
 	@Bean
 	public Step step5() {
 		return stepBuilderFactory.get("step5").<Sales, Sales>chunk(200).reader(reader2()).processor(processor2())
-				.writer(writer2()).taskExecutor(taskExecutor2()).build();
+				.writer(writer2()).taskExecutor(taskExecutor2()).throttleLimit(20).build();
 	}
 
 	@Bean

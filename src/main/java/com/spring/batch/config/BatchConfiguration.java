@@ -58,6 +58,10 @@ public class BatchConfiguration {
 	private static final Logger log = LoggerFactory.getLogger(BatchConfiguration.class);
 	@Value("${mycustom.batch.partition.size}")
 	private int mycustombatchpartitionsize;
+	@Value("${mycustom.batch.throttle.limit}")
+	private int mycustombatchthrottlelimit;
+	@Value("${mycustom.batch.grid.size}")
+	private int mycustombatchgridsize;
 	@Value("${mycustom.batch.chunk.size}")
 	private int mycustombatchchunksize;
 	@Value("${mycustom.batch.maxpool.size}")
@@ -165,7 +169,9 @@ public class BatchConfiguration {
 	@Qualifier("masterStep")
 	public Step masterStep() {
 		return stepBuilderFactory.get("masterStep").partitioner("step1", partitioner()).step(step1())
-				.taskExecutor(taskExecutor()).build();
+				.taskExecutor(taskExecutor())
+				.gridSize(mycustombatchgridsize) 
+				.build();
 	}
 
 	@Bean
@@ -183,6 +189,7 @@ public class BatchConfiguration {
 		// attribute.setTimeout(30);
 		return stepBuilderFactory.get("step1").<Sales, Sales>chunk(mycustombatchchunksize).reader(salesItemReader)
 				.processor(processor()).writer(writer)
+				.throttleLimit(mycustombatchthrottlelimit)
 				// .skipLimit(10) //default is set to 0 // .startLimit(1)
 				// .stream(fileItemWriter1())// .stream(fileItemWriter2())
 				// .transactionAttribute(attribute) // .readerIsTransactionalQueue()
