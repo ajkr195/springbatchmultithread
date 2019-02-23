@@ -10,8 +10,8 @@ import java.util.List;
 
 public class CompareTextFiles2 {
     public static void main(final String[] args) throws IOException {
-        final Path firstFile = Paths.get("a.txt");
-        final Path secondFile = Paths.get("b.txt");
+        final Path firstFile = Paths.get("100sales.csv");
+        final Path secondFile = Paths.get("salesreport.csv");
         final List<String> firstFileContent = Files.readAllLines(firstFile,
             Charset.defaultCharset());
         final List<String> secondFileContent = Files.readAllLines(secondFile,
