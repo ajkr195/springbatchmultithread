@@ -5,9 +5,6 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import javax.sql.DataSource;
@@ -32,9 +29,10 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 //import org.springframework.core.io.ClassPathResource;
 import org.springframework.core.io.FileSystemResource;
+import org.springframework.core.task.SimpleAsyncTaskExecutor;
+import org.springframework.core.task.TaskExecutor;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.retry.annotation.EnableRetry;
-import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 
 //import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import com.spring.batch.itemprocessor.SalesItemProcessor2;
@@ -72,6 +70,8 @@ public class BatchConfiguration2 {
 	public JdbcCursorItemReader<Sales> reader2() {
 		log.info("BATCH CONFIG 2 - Reading DB values.........");
 		JdbcCursorItemReader<Sales> reader2 = new JdbcCursorItemReader<Sales>();
+//		reader2.setVerifyCursorPosition(true);
+		reader2.setVerifyCursorPosition(false);
 		reader2.setDataSource(dataSource);
 		reader2.setSql("SELECT region, country, itemType, salesChannel, orderPriority, orderDate, orderID, shipDate, "
 				+ "unitsSold, unitPrice, unitCost, totalRevenue, totalCost, totalProfit FROM salesreport");
@@ -135,8 +135,8 @@ public class BatchConfiguration2 {
 
 	@Bean
 	public Step step5() {
-		return stepBuilderFactory.get("step5").<Sales, Sales>chunk(10).reader(reader2()).processor(processor2())
-				.writer(writer2()).build();
+		return stepBuilderFactory.get("step5").<Sales, Sales>chunk(200).reader(reader2()).processor(processor2())
+				.writer(writer2()).taskExecutor(taskExecutor2()).build();
 	}
 
 	@Bean
@@ -168,6 +168,13 @@ public class BatchConfiguration2 {
 				}
 			}
 		};
+	}
+	
+	@Bean
+	public TaskExecutor taskExecutor2(){
+	    SimpleAsyncTaskExecutor asyncTaskExecutor=new SimpleAsyncTaskExecutor("exportSalesJob");
+	    asyncTaskExecutor.setConcurrencyLimit(5);
+	    return asyncTaskExecutor;
 	}
 
 //	public void javaStream() {
