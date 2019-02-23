@@ -135,7 +135,7 @@ public class BatchConfiguration2 {
 
 	@Bean
 	public Step step5() {
-		return stepBuilderFactory.get("step5").<Sales, Sales>chunk(200).reader(reader2()).processor(processor2())
+		return stepBuilderFactory.get("step5").<Sales, Sales>chunk(20).reader(reader2()).processor(processor2())
 				.writer(writer2()).taskExecutor(taskExecutor2()).throttleLimit(20).build();
 	}
 
@@ -173,7 +173,7 @@ public class BatchConfiguration2 {
 	@Bean
 	public TaskExecutor taskExecutor2(){
 	    SimpleAsyncTaskExecutor asyncTaskExecutor=new SimpleAsyncTaskExecutor("exportSalesJob");
-	    asyncTaskExecutor.setConcurrencyLimit(5);
+	    asyncTaskExecutor.setConcurrencyLimit(15);
 	    return asyncTaskExecutor;
 	}
 
