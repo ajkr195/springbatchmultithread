@@ -121,7 +121,7 @@ public class BatchConfiguration {
 
 	@Bean
 	public TaskExecutor asynctaskExecutor() {
-		SimpleAsyncTaskExecutor asyncTaskExecutor = new SimpleAsyncTaskExecutor("exportSalesJob");
+		SimpleAsyncTaskExecutor asyncTaskExecutor = new SimpleAsyncTaskExecutor("importSalesJob");
 		asyncTaskExecutor.setConcurrencyLimit(mycustombatchconcurrencysize);
 //		asyncTaskExecutor.setThreadNamePrefix("CSVtoDB");
 		return asyncTaskExecutor;
@@ -200,7 +200,10 @@ public class BatchConfiguration {
 		// attribute.setIsolationLevel(Isolation.DEFAULT.value());
 		// attribute.setTimeout(30);
 		return stepBuilderFactory.get("step1").<Sales, Sales>chunk(mycustombatchchunksize).reader(salesItemReader)
-				.processor(processor()).writer(writer).throttleLimit(mycustombatchthrottlelimit)
+				.processor(processor()).writer(writer)
+				// Fault Tolerance
+				//.faultTolerant()
+				.throttleLimit(mycustombatchthrottlelimit)
 				// .skipLimit(10) //default is set to 0 // .startLimit(1)
 				// .stream(fileItemWriter1())// .stream(fileItemWriter2())
 				// .transactionAttribute(attribute) // .readerIsTransactionalQueue()
@@ -208,6 +211,7 @@ public class BatchConfiguration {
 				// .skip(Exception.class)// .noSkip(FileNotFoundException.class)
 				// .retryLimit(3)// .retry(DeadlockLoserDataAccessException.class)
 				// .skip(FlatFileParseException.class) // .writer(compositeItemWriter())
+
 				.build();
 	}
 
