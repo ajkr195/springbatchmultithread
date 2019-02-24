@@ -90,7 +90,7 @@ public class BatchConfiguration2 {
 
 	@Bean(destroyMethod = "")
 	public JdbcCursorItemReader<Sales> reader2() {
-		log.info("BATCH CONFIG 2 - Reading DB values.........");
+		log.info("BATCH CONFIG 2 - Reading Batch Configurations");
 		JdbcCursorItemReader<Sales> reader2 = new JdbcCursorItemReader<Sales>();
 //		reader2.setVerifyCursorPosition(true);
 		reader2.setVerifyCursorPosition(false);
@@ -127,7 +127,7 @@ public class BatchConfiguration2 {
 
 	@Bean
 	public FlatFileItemWriter<Sales> writer2() {
-		log.info("BATCH CONFIG 2 - Exporting DB values to CSV file.........");
+		log.info("BATCH CONFIG 2 - Export Configuration");
 		FlatFileItemWriter<Sales> writer2 = new FlatFileItemWriter<Sales>();
 //		writer2.setResource(new ClassPathResource("salesreport.csv"));
 //		writer2.setResource(new FileSystemResource(new File("salesreport.csv")));
@@ -200,9 +200,9 @@ public class BatchConfiguration2 {
 
 				log.info("Lets verify the generated output csv file");
 				try (Stream<String> stream = Files.lines(Paths.get(FILENAME))) {
-
-					stream.forEach(System.out::println);
-
+					//stream.forEach(System.out::println);
+//			        stream.peek(a -> log.info("Reading generated output csv file line-by-line")).
+			        stream.forEach(a -> {log.info("Reading CSV Line  >>  "+a);});
 				} catch (IOException e) {
 					e.printStackTrace();
 				}
@@ -229,20 +229,5 @@ public class BatchConfiguration2 {
 //        queryProvider.setSortKeys(sortByorderIDAddressAsc());
 //        return queryProvider;
 //    }
-    
-//	public void javaStream() {
-//	List<String> list = new ArrayList<>();
-//	try (Stream<String> stream = Files.lines(Paths.get(FILENAME))) {
-//		// 1. filter line 3 //2. convert all content to upper case //3. convert it into
-//		// a List
-//		list = stream.filter(line -> !line.startsWith("line3")).map(String::toUpperCase)
-//				.collect(Collectors.toList());
-//
-//	} catch (IOException e) {
-//		e.printStackTrace();
-//	}
-//	list.forEach(System.out::println);
-//}
-	
 	
 }

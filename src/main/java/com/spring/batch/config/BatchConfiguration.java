@@ -154,7 +154,7 @@ public class BatchConfiguration {
 	public FlatFileItemReader<Sales> salesItemReader(@Value("#{stepExecutionContext['fileName']}") String filename)
 			throws MalformedURLException {
 		log.info("In Flat-File-Item-Reader, currently reading   >>     " + filename);
-		log.info("BATCH CONFIG 1 - Reading CSV values.........");
+		
 		// System.out.println("In Reader >> "+filename);
 		return new FlatFileItemReaderBuilder<Sales>().name("salesItemReader")// .linesToSkip(1)
 				.delimited()

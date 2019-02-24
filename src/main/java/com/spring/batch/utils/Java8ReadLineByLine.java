@@ -11,3 +11,17 @@ public class Java8ReadLineByLine {
 				.forEach(System.out::println);
 	}
 }
+
+//public void javaStream() {
+//List<String> list = new ArrayList<>();
+//try (Stream<String> stream = Files.lines(Paths.get(FILENAME))) {
+//	// 1. filter line 3 //2. convert all content to upper case //3. convert it into
+//	// a List
+//	list = stream.filter(line -> !line.startsWith("line3")).map(String::toUpperCase)
+//			.collect(Collectors.toList());
+//
+//} catch (IOException e) {
+//	e.printStackTrace();
+//}
+//list.forEach(System.out::println);
+//}
