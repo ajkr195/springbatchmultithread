@@ -20,6 +20,8 @@ import org.springframework.batch.core.configuration.support.JobRegistryBeanPostP
 import org.springframework.batch.core.launch.support.RunIdIncrementer;
 import org.springframework.batch.core.partition.support.MultiResourcePartitioner;
 import org.springframework.batch.core.partition.support.Partitioner;
+import org.springframework.batch.core.repository.JobRepository;
+import org.springframework.batch.core.repository.support.JobRepositoryFactoryBean;
 //import org.springframework.batch.item.ItemWriter;
 import org.springframework.batch.item.database.BeanPropertyItemSqlParameterSourceProvider;
 import org.springframework.batch.item.database.JdbcBatchItemWriter;
@@ -27,6 +29,7 @@ import org.springframework.batch.item.database.builder.JdbcBatchItemWriterBuilde
 import org.springframework.batch.item.file.FlatFileItemReader;
 import org.springframework.batch.item.file.builder.FlatFileItemReaderBuilder;
 import org.springframework.batch.item.file.mapping.BeanWrapperFieldSetMapper;
+import org.springframework.batch.item.validator.BeanValidatingItemProcessor;
 //import org.springframework.batch.item.support.CompositeItemWriter;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -42,6 +45,7 @@ import org.springframework.core.task.SimpleAsyncTaskExecutor;
 import org.springframework.core.task.TaskExecutor;
 import org.springframework.retry.annotation.EnableRetry;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
+import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.interceptor.DefaultTransactionAttribute;
 
 import com.spring.batch.itemprocessor.SalesItemProcessor;
@@ -89,7 +93,7 @@ public class BatchConfiguration {
 
 	@Autowired
 	private FlatFileItemReader<Sales> salesItemReader;
-
+	
 	@Bean("partitioner")
 	@StepScope
 	public Partitioner partitioner() {
@@ -114,16 +118,20 @@ public class BatchConfiguration {
 		taskExecutor.setMaxPoolSize(mycustombatchmaxpoolsize);
 		taskExecutor.setCorePoolSize(mycustombatchcorepoolsize);
 		taskExecutor.setQueueCapacity(mycustombatchqueuecapacitysize);
-		taskExecutor.setThreadNamePrefix("CSVtoDB");
+		taskExecutor.setThreadNamePrefix("CSV2DB-");
 		taskExecutor.afterPropertiesSet();
 		return taskExecutor;
 	}
 
 	@Bean
 	public TaskExecutor asynctaskExecutor() {
-		SimpleAsyncTaskExecutor asyncTaskExecutor = new SimpleAsyncTaskExecutor("importSalesJob");
+		SimpleAsyncTaskExecutor asyncTaskExecutor = new SimpleAsyncTaskExecutor("CSV2DB-");
 		asyncTaskExecutor.setConcurrencyLimit(mycustombatchconcurrencysize);
 //		asyncTaskExecutor.setThreadNamePrefix("CSVtoDB");
+//		System.out.println( "   >>>>>>>          "  + asyncTaskExecutor.getConcurrencyLimit());
+//		System.out.println( "   >>>>>>>          "  + asyncTaskExecutor.getThreadFactory());
+//		System.out.println( "   >>>>>>>          "  + asyncTaskExecutor.getThreadGroup());
+//		System.out.println( "   >>>>>>>          "  + asyncTaskExecutor.getThreadNamePrefix());
 		return asyncTaskExecutor;
 	}
 
@@ -182,7 +190,7 @@ public class BatchConfiguration {
 	@Qualifier("masterStep")
 	public Step masterStep() {
 		return stepBuilderFactory.get("masterStep").partitioner("step1", partitioner()).step(step1())
-				.taskExecutor(threadpooltaskExecutor()).taskExecutor(asynctaskExecutor())
+				.taskExecutor(asynctaskExecutor()).taskExecutor(threadpooltaskExecutor())
 				.gridSize(mycustombatchgridsize).build();
 	}
 
@@ -200,9 +208,13 @@ public class BatchConfiguration {
 		// attribute.setIsolationLevel(Isolation.DEFAULT.value());
 		// attribute.setTimeout(30);
 		return stepBuilderFactory.get("step1").<Sales, Sales>chunk(mycustombatchchunksize).reader(salesItemReader)
-				.processor(processor()).writer(writer)
+				.processor(processor())
+				.writer(writer)
 				// Fault Tolerance
 				//.faultTolerant()
+				.taskExecutor(threadpooltaskExecutor())
+				.taskExecutor(asynctaskExecutor())
+				.listener(jobExecutionListener(threadpooltaskExecutor()))
 				.throttleLimit(mycustombatchthrottlelimit)
 				// .skipLimit(10) //default is set to 0 // .startLimit(1)
 				// .stream(fileItemWriter1())// .stream(fileItemWriter2())
@@ -240,6 +252,7 @@ public class BatchConfiguration {
 				// .preventRestart() // By default all jobs are re-startable. Use this if want
 				// to restrict it.
 				.flow(step2).end().listener(interceptingJob).listener(jobExecutionListener(threadpooltaskExecutor()))
+				//.validator(parametersValidator())
 				.build();
 	}
 

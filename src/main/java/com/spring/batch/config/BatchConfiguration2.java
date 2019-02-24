@@ -19,20 +19,27 @@ import org.springframework.batch.core.configuration.annotation.EnableBatchProces
 import org.springframework.batch.core.configuration.annotation.JobBuilderFactory;
 import org.springframework.batch.core.configuration.annotation.StepBuilderFactory;
 import org.springframework.batch.core.launch.support.RunIdIncrementer;
+import org.springframework.batch.item.ItemReader;
 import org.springframework.batch.item.database.JdbcCursorItemReader;
+import org.springframework.batch.item.database.JdbcPagingItemReader;
+import org.springframework.batch.item.database.PagingQueryProvider;
+import org.springframework.batch.item.database.support.MySqlPagingQueryProvider;
 import org.springframework.batch.item.file.FlatFileItemWriter;
 import org.springframework.batch.item.file.transform.BeanWrapperFieldExtractor;
 import org.springframework.batch.item.file.transform.DelimitedLineAggregator;
 //import org.springframework.batch.item.support.CompositeItemWriter;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 //import org.springframework.core.io.ClassPathResource;
 import org.springframework.core.io.FileSystemResource;
 import org.springframework.core.task.SimpleAsyncTaskExecutor;
 import org.springframework.core.task.TaskExecutor;
+import org.springframework.jdbc.core.BeanPropertyRowMapper;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.retry.annotation.EnableRetry;
+import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 
 //import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import com.spring.batch.itemprocessor.SalesItemProcessor2;
@@ -46,6 +53,21 @@ public class BatchConfiguration2 {
 
 	private static final Logger log = LoggerFactory.getLogger(BatchConfiguration2.class);
 	private static String FILENAME = "salesreport.csv";
+	
+	@Value("${mycustom.batch.chunk.size}")
+	private int mycustombatchchunksize;
+	@Value("${mycustom.batch.concurrency.size}")
+	private int mycustombatchconcurrencysize;
+	@Value("${mycustom.batch.throttle.limit}")
+	private int mycustombatchthrottlelimit;
+	@Value("${mycustom.batch.maxpool.size}")
+	private int mycustombatchmaxpoolsize;
+	@Value("${mycustom.batch.corepool.size}")
+	private int mycustombatchcorepoolsize;
+	@Value("${mycustom.batch.queuecapacity.size}")
+	private int mycustombatchqueuecapacitysize;
+	
+	
 	@Autowired
 	public JobBuilderFactory jobBuilderFactory;
 
@@ -73,8 +95,8 @@ public class BatchConfiguration2 {
 //		reader2.setVerifyCursorPosition(true);
 		reader2.setVerifyCursorPosition(false);
 		reader2.setDataSource(dataSource);
-		reader2.setSql("SELECT region, country, itemType, salesChannel, orderPriority, orderDate, orderID, shipDate, "
-				+ "unitsSold, unitPrice, unitCost, totalRevenue, totalCost, totalProfit FROM salesreport");
+		reader2.setSql("SELECT salesreport.region, salesreport.country, salesreport.itemType, salesreport.salesChannel, salesreport.orderPriority, salesreport.orderDate, salesreport.orderID, salesreport.shipDate, "
+				+ "salesreport.unitsSold, salesreport.unitPrice, salesreport.unitCost, salesreport.totalRevenue, salesreport.totalCost, salesreport.totalProfit FROM salesreport");
 		reader2.setRowMapper(new SalesRowMapper());
 
 		return reader2;
@@ -84,21 +106,20 @@ public class BatchConfiguration2 {
 		@Override
 		public Sales mapRow(ResultSet rs, int rowNum) throws SQLException {
 			Sales sales = new Sales();
-			sales.setRegion(rs.getString("region"));
-			sales.setCountry(rs.getString("country"));
-			sales.setItemtype(rs.getString("itemtype"));
-			sales.setSaleschannel(rs.getString("saleschannel"));
-			sales.setOrderpriority(rs.getString("orderpriority"));
-			sales.setOrderdate(rs.getString("orderdate"));
-			sales.setOrderid(rs.getString("orderid"));
-			sales.setShipdate(rs.getString("shipdate"));
-			sales.setUnitssold(rs.getString("unitssold"));
-			sales.setUnitprice(rs.getString("unitprice"));
-			sales.setUnitcost(rs.getString("unitcost"));
-			sales.setTotalrevenue(rs.getString("totalrevenue"));
-			sales.setTotalcost(rs.getString("totalcost"));
-			sales.setTotalprofit(rs.getString("totalprofit"));
-
+			sales.setRegion(rs.getString(1));//("region"));
+			sales.setCountry(rs.getString(2));//("country"));
+			sales.setItemtype(rs.getString(3));//("itemtype"));
+			sales.setSaleschannel(rs.getString(4));
+			sales.setOrderpriority(rs.getString(5));
+			sales.setOrderdate(rs.getString(6));
+			sales.setOrderid(rs.getString(7));
+			sales.setShipdate(rs.getString(8));
+			sales.setUnitssold(rs.getString(9));
+			sales.setUnitprice(rs.getString(10));
+			sales.setUnitcost(rs.getString(11));
+			sales.setTotalrevenue(rs.getString(12));
+			sales.setTotalcost(rs.getString(13));
+			sales.setTotalprofit(rs.getString(14));
 			return sales;
 		}
 
@@ -134,20 +155,39 @@ public class BatchConfiguration2 {
 	}
 
 	@Bean
-	public Step step5() {
-		return stepBuilderFactory.get("step5").<Sales, Sales>chunk(20).reader(reader2()).processor(processor2())
-				.writer(writer2()).taskExecutor(taskExecutor2()).throttleLimit(20).build();
+	public TaskExecutor taskExecutor2(){
+	    SimpleAsyncTaskExecutor asyncTaskExecutor=new SimpleAsyncTaskExecutor("EXPORTSALES");
+	    asyncTaskExecutor.setConcurrencyLimit(mycustombatchconcurrencysize);
+	    return asyncTaskExecutor;
 	}
-
+	
+	@Bean
+	public ThreadPoolTaskExecutor secondthreadpooltaskExecutor() {
+		ThreadPoolTaskExecutor secondtaskExecutor = new ThreadPoolTaskExecutor();
+		secondtaskExecutor.setMaxPoolSize(mycustombatchmaxpoolsize);
+		secondtaskExecutor.setCorePoolSize(mycustombatchcorepoolsize);
+		secondtaskExecutor.setQueueCapacity(mycustombatchqueuecapacitysize);
+		secondtaskExecutor.setThreadNamePrefix("DB2CSV-");
+		secondtaskExecutor.afterPropertiesSet();
+		return secondtaskExecutor;
+	}
+	
+	@Bean
+	public Step step5() {
+		return stepBuilderFactory.get("step5").<Sales, Sales>chunk(mycustombatchchunksize).reader(reader2()).processor(processor2())
+				.writer(writer2()).taskExecutor(taskExecutor2()).taskExecutor(secondthreadpooltaskExecutor()).throttleLimit(mycustombatchthrottlelimit).build();
+	}
+	
 	@Bean
 	public Job exportSalesJob() {
 		return jobBuilderFactory.get("exportSalesJob").incrementer(new RunIdIncrementer()).flow(step5()).end()
-				.listener(jobExecution).listener(jobExecutionListener2()).build();
+				.listener(jobExecution).listener(jobExecutionListener2(secondthreadpooltaskExecutor())).build();
 	}
 
 	@Bean
-	public JobExecutionListener jobExecutionListener2() {
+	public JobExecutionListener jobExecutionListener2(ThreadPoolTaskExecutor executor) {
 		return new JobExecutionListener() {
+			private ThreadPoolTaskExecutor taskExecutor = executor;
 			@Override
 			public void beforeJob(JobExecution jobExecution) {
 				log.info(
@@ -166,29 +206,43 @@ public class BatchConfiguration2 {
 				} catch (IOException e) {
 					e.printStackTrace();
 				}
+				taskExecutor.shutdown();
 			}
 		};
 	}
-	
-	@Bean
-	public TaskExecutor taskExecutor2(){
-	    SimpleAsyncTaskExecutor asyncTaskExecutor=new SimpleAsyncTaskExecutor("exportSalesJob");
-	    asyncTaskExecutor.setConcurrencyLimit(15);
-	    return asyncTaskExecutor;
-	}
 
+//	@Bean
+//    ItemReader<Sales> reader3(DataSource dataSource) {
+//        JdbcPagingItemReader<Sales> reader3 = new JdbcPagingItemReader<>();
+//        reader3.setDataSource(dataSource);
+//        reader3.setPageSize(1);
+//        PagingQueryProvider queryProvider = createQueryProvider();
+//        reader3.setQueryProvider(queryProvider);
+//        reader3.setRowMapper(new BeanPropertyRowMapper<>(Sales.class));
+//        return reader3;
+//    }
+// 
+//    private PagingQueryProvider createQueryProvider() {
+//        MySqlPagingQueryProvider queryProvider = new MySqlPagingQueryProvider();
+//        queryProvider.setSelectClause("SELECT region, country, itemType, salesChannel, orderPriority, orderDate, orderID, shipDate, unitsSold, unitPrice, unitCost, totalRevenue, totalCost, totalProfit");
+//        queryProvider.setFromClause("FROM salesreport");
+//        queryProvider.setSortKeys(sortByorderIDAddressAsc());
+//        return queryProvider;
+//    }
+    
 //	public void javaStream() {
-//		List<String> list = new ArrayList<>();
-//		try (Stream<String> stream = Files.lines(Paths.get(FILENAME))) {
-//			// 1. filter line 3 //2. convert all content to upper case //3. convert it into
-//			// a List
-//			list = stream.filter(line -> !line.startsWith("line3")).map(String::toUpperCase)
-//					.collect(Collectors.toList());
+//	List<String> list = new ArrayList<>();
+//	try (Stream<String> stream = Files.lines(Paths.get(FILENAME))) {
+//		// 1. filter line 3 //2. convert all content to upper case //3. convert it into
+//		// a List
+//		list = stream.filter(line -> !line.startsWith("line3")).map(String::toUpperCase)
+//				.collect(Collectors.toList());
 //
-//		} catch (IOException e) {
-//			e.printStackTrace();
-//		}
-//		list.forEach(System.out::println);
+//	} catch (IOException e) {
+//		e.printStackTrace();
 //	}
-
+//	list.forEach(System.out::println);
+//}
+	
+	
 }
